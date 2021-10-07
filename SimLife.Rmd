@@ -13,13 +13,13 @@ output:
   tufte::tufte_handout:
     citation_package: natbib
     latex_engine: xelatex
+  css: styles.css
 bibliography: skeleton.bib
 link-citations: yes
 ---
 
 ```{r setup, include=FALSE}
 library(tufte)
-library
 # invalidate cache when the tufte version changes
 knitr::opts_chunk$set(cache.extra = packageVersion('tufte'))
 options(htmltools.dir.version = FALSE)
@@ -41,9 +41,7 @@ options(htmltools.dir.version = FALSE)
 
     -   Ecological communities
 
-    -   Population growth
-
-    -   Coupled differential equations
+    -   Species interactions & coexistence
 
 ```{r, echo = FALSE, include = FALSE, message = FALSE}
 library(ggplot2)
@@ -54,7 +52,7 @@ library(emo)
 
 # The essentials
 
-*Note: If you have some basic programming experience then this section is really just a review.*
+*Note: This workshop is about simulations and not programming. Don't worry about the details but rather, focus on building intuition and a mental model*
 
 There are only a couple things you will need to run a simulation: 1) generate a sequence of numbers, 2) have some way to store data, 3) be able to manipulate that data, and 4) have **imagination** `r ji("smile")`
 
@@ -143,6 +141,10 @@ In general, loops are used to do *repetitive* tasks. Although R has some ways of
 Some inspiration from the great explainer
 
 > "Our imagination is stretched to the utmost, not, as in fiction, to imagine things which are not really there, but just to comprehend those things which are there." -Richard Feynman
+
+<br>
+
+<br>
 
 # Numerical approximations
 
@@ -240,7 +242,7 @@ approx_pi_fun(n = 100)
 
 **Task 1a**: Use the `approx_pi_fun()` function and apply it to varying levels of sample sizes (*n*) and see how the approximation of $\pi$ changes
 
-```{r}
+```{r, echo = FALSE}
 #I. Generate a sequece of values: these will be your "ns"
 n_vals <- seq(from = 100, to = 2000, by = 100) #these need to be integer values
 
@@ -288,6 +290,10 @@ pi_experiment%>%
 
 ```
 
+<br>
+
+<br>
+
 # What do you "mean"?
 
 I think it's safe to say that we all know what the *mean* (or average) is. It's a summary statistic (a single value) that best represents a set of values `r margin_note('From Wikipedia: "[The mean] is a central value of a finite set of numbers"')`. And you probably also know the formula for it:
@@ -312,7 +318,7 @@ $$
 
 If a point is centered, then the distances to the left should be balanced by the distances to the right. Squaring ensures the distances are all positive (as you may have been told before) but it also does something very special.
 
-## Activity 2: Approximating statistical parameters numerically 
+## Activity 2: Approximating statistical parameters numerically
 
 **Task 2.** Using the sum of squares (SS) equation, calculate the SS for a range of *possible* means of a random variable
 
@@ -352,7 +358,9 @@ data.frame(SumOfSquares = ss, possible_mean = possible_means)%>%
   ggplot(aes(x = possible_mean, y = SumOfSquares))+
   geom_line()+
   geom_point(aes(col = Minimum))+
-  geom_vline(xintercept = mean(rand))
+  geom_vline(xintercept = mean(rand))+
+  labs(y = "Sum of Squares", x = "Candidate mean")+
+  theme_bw()
 
 #Experiment with the number of possible means and see what happens to the plot
 ```
@@ -370,12 +378,16 @@ $$= 2\sum_{i = 1}^{N}(x_{i}) - 2\overline{x}\sum_{i = 1}^{N}1$$
 
 $$= 2\sum_{i = 1}^{N}(x_{i}) - 2\overline{x}$$
 
-$$2\overline{x}n= 2\sum_{i = 1}^{N}(x_{i})$$
+$$2\overline{x}N= 2\sum_{i = 1}^{N}(x_{i})$$
 
 $$\overline{x}= \frac{\sum_{i = 1}^{N}(x_{i})}{N}$$
 ```
 
 Notice that the resulting function is a **curve** and that the **minimum** of that curve lies the actual mean. Knowing this, and a bit of calculus, is there anything "special" about the minimum point that you can say? What can we do with that information?
+
+<br>
+
+<br>
 
 # Pseudorandom numbers, logistic map, and chaos
 
@@ -427,7 +439,7 @@ logistic_map <- function(N0, r, timesteps){
  }
 
 #Test
-# logistic_map(r = 3.6, N0 = 0.5, timesteps = 20)%>%
+# logistic_map(r = 4, N0 = 0.5, timesteps = 20)%>%
 #   plot(type = 'line')
 ```
 
@@ -435,7 +447,7 @@ Lets take a look at the dynamics of the system with different values of $r$:
 
 ```{r}
 #Values of r
-rs <- c(1.5, 2.5, 3.3, 3.6)
+rs <- c(1.5, 2.5, 3.3, 4)
 
 #Apply each to logistic map function
 out <- lapply(rs, function(x)logistic_map(r = x, N0 = 0.3, timesteps = 30))%>%
@@ -460,66 +472,113 @@ Here is an an example with varying N0 for the system with r = 1.5:
 
 ```{r}
 #Set of initial conditions
-N0 <- seq(from = 0.1, to = 0.3, length.out = 5)
+N0 <- seq(from = 0.3, to = 0.4, length.out = 5)
 
 #Apply each N0 to logistic_map(r = 1.5)
 lmap_stable <- lapply(N0, function(x)logistic_map(r = 1.5, N0 = x, timesteps = 30))%>%
   setNames(nm = N0)%>%
   bind_rows(.id = 'N0')%>%
   tibble::rowid_to_column(var = 'time')%>%
-  pivot_longer(cols = -1, names_to = 'N0', values_to = "N")
+  pivot_longer(cols = -1, names_to = 'N0', values_to = "N")%>%
+  mutate(N0 = as.numeric(N0))
 
 #Plot
 lmap_stable%>%
   ggplot(aes(x = time, y = N, group = N0, col = N0))+
-  geom_line()+
-  theme_bw()
+   scale_color_continuous(type = "gradient")+
+   geom_line()+
+   theme_bw()
 ```
 
-**Task 3b:** Modify the code above and see what happens when we change $r$ to 3.6.
+**Task 3b:** Modify the code above and see what happens when we change $r$ to 4.
 
-```{r}
+```{r, echo = FALSE}
 #Set of initial conditions
-N0 <- seq(from = 0.1, to = 0.3, length.out = 5)
+N0 <- seq(from = 0.3, to = 0.4, length.out = 5)
 
-#Apply each N0 to logistic_map(r = 3.6)
-#lmap_chaos <- 
+#Apply each N0 to logistic_map(r = 4)
+lmap_chaos <- lapply(N0, function(x)logistic_map(r = 4, N0 = x, timesteps = 30))%>%
+  setNames(nm = N0)%>%
+  bind_rows(.id = 'N0')%>%
+  tibble::rowid_to_column(var = 'time')%>%
+  pivot_longer(cols = -1, names_to = 'N0', values_to = "N")%>%
+  mutate(N0 = as.numeric(N0))
 
 #Plot
-# lmap_chaos%>%
-#   ggplot(aes(x = time, y = N, group = N0, col = N0))+
-#   geom_line()+
-#   theme_bw()
+ lmap_chaos%>%
+   ggplot(aes(x = time, y = N, col = N0, group = N0))+
+   scale_color_continuous(type = "gradient")+
+   geom_line()+
+   theme_bw()
 ```
 
-As you can see, the trajectory of a chaotic system is highly dependent on initial conditions. If we know the initial conditions, then we know exactly how the system will progress. In other words, every time we simulate the chaotic system with N0 = 0.3, it will always be the exact same solution. In that sense, there is nothing *random* about it! So going back to our original question, how is it that `rnorm(1)` gives us a different value every single time? If the chaotic system is "seeded" with a random initial condition, can we really say that the sequence of numbers are random. So how do we seed is with something "random"?
+As you can see, the trajectory of a chaotic system is highly dependent on initial conditions. If we know the initial conditions, then we know exactly how the system will progress. In other words, every time we simulate the chaotic system with N0 = 0.3, it will always be the exact same solution. In that sense, there is nothing *random* about it! So going back to our original question, how is it that `rnorm(1)` gives us a different value every single time? If the chaotic system is "seeded" with a random initial condition, can we really say that the sequence of numbers are random. So how do we *seed it* with something "random"?
 
 **Coupling randomness w/ deterministic chaos**
 
 ```{r}
+#Generate a random seed
 random_seed <- format(Sys.time(), "%OS5")%>%
   substr(start = 3, stop = 7)%>%
   as.numeric
 
-logistic_map(r = 3.6, N0 = random_seed, timesteps = 30)%>%
+#Use the seed as initial condition
+logistic_map(r = 4, N0 = random_seed, timesteps = 30)%>%
   tail(20)%>% #remove transient
-  order()
+  order() #ignore the values and just look at their order
 ```
 
-Let's do a permutation test to confirm if this "randomness" works
+Let's apply the CLT to see if we can convert a chaotic system into a Gaussian random variable.
 
-**Task 3c.**
+The **Central Limit Theorem** states that when *independent random variables* are summed up, the distribution of those summed statistics will approximate a normal distribution.
 
-```{r}
-commA <- rpois(20, lambda = 15)
-commB <- rpois(20, lambda = 30)
-community_richness <- data.frame(richness = c(commA, commB),
-                                 community = rep(c("A", "B"), each = 20))
-community_richness%>%
-  ggplot(aes(x = community, y = richness))+
-  geom_point(position = position_jitter(width = 0.1)) x
+We can "simulate" independent variables by dividing up a single chaotic series into chunks, we assume that each *chunk* represents an independent variable.
 
+**Task 3c.** Using chaos coupled with a random seed and the CLT, create a random variable that follows a normal distribution.
+
+```{r, figures-side, fig.show="hold", out.width="50%", echo = FALSE}
+#From chaos to CLT
+ind_variables <- 300 #number of independent variables
+n_of_variables <- 20 #sample size of variables
+
+#FUNCTION: Chaos with random seed
+random_chaos <- function(n = 20, burn_in = 10){
+  random_seed <- format(Sys.time(), "%OS7")%>%
+    substr(start = 3, stop = 9)%>%
+    as.numeric
+  
+  out <- logistic_map(r = 4, N0 = random_seed, timesteps = n+burn_in)%>%
+    tail(n) #remove transient dynamics
+  # 
+  return(out)
+}
+
+#Store chaotic series in a matrix, each "col" becomes a "variable"
+#number of columns will be equal to the number of random samples
+chaotic_matrix <- matrix(random_chaos(n = n_of_variables*ind_variables), nrow = 20)
+
+
+################################################################
+#Summarise those random samples: use mean, sum, or var
+
+#Option 1: Apply
+gaussian <- apply(chaotic_matrix, 2, mean) 
+
+#Option 2: For loop 
+# gaussian <- c()
+# for(i in 1:ncol(chaotic_matrix)){
+#   gaussian[i] <- chaotic_matrix[,i]%>%
+#     mean()
+# }
+
+#Visualize result
+gaussian%>%hist() #distribution
+gaussian%>%plot() #equal variance
 ```
+
+<br>
+
+<br>
 
 # Simulating ecology
 
@@ -529,7 +588,7 @@ community_richness%>%
 *Obviously this isn't true because of dispersal, competition, and niche construction!
 ```
 
-An ecological community is a collection of species in a given place/time. The question that most of us are interested in is, why do species occur where they do? The simplest, knee-jerk, answer is that species occurrences are determined by the environment\*. That is, different species are adapted to different environmental conditions. Because there is some overlap in environmental requirements, some species will co-occur while some do not. The patterns of co-occurrence among species along environmental gradients therefore determine diversity patterns along those gradients.
+An ecological community is a collection of species in a given place/time. The question that most of us are interested in is, why do species occur where they do? The simplest, knee-jerk, answer is that species occurrences are determined by the environment\*. That is, different species are adapted to different environmental conditions. Because there is some overlap in environmental requirements, some species will co-occur while some do not. The patterns of co-occurrence among species along environmental gradients therefore determine diversity patterns.
 
 The simplest way to model species responses to environmental conditions is to assume that their fitness is a function of the environment (x) that follows a Gaussian distribution:
 
@@ -542,8 +601,6 @@ $r$, $optima$ and $\sigma$ are species-specific parameters that tell us their **
 ```{r}
 #Gaussian response curve
 response_curves <- function(x, optima, niche_width, max_r = 1, plot = FALSE){
-  require(dplyr)
-  require(ggplot2)
   
   out <- max_r*exp(-((optima - x)/(2*niche_width))^2)
 
@@ -580,8 +637,6 @@ sp1_samples <- rbinom(n = length(env), size = 1, prob = sp1)
 
 #Visualize
 data.frame(Env = env, Fitness = sp1, Observation = sp1_samples)%>%
-  #pivot_longer(cols = -1, names_to = "Type")%>%
-  #ggplot(aes(x = Env, y = value, group = Type))+
   ggplot(aes(x = Env))+
   geom_line(aes(y = Fitness), size = 2)+
   geom_point(aes(y = Observation), col = 'grey')+
@@ -591,3 +646,316 @@ data.frame(Env = env, Fitness = sp1, Observation = sp1_samples)%>%
 ```
 
 Now that we know how to simulate the response of a single species, we simply do it for multiple species (w/ different values of $r$, $optima$, $\sigma$ ) and Voila, an "**ecological community**"!
+
+```{r, echo = FALSE, warning=FALSE}
+sim_comm <- function(no_spp, optima, niche_width, max_r, env, response = TRUE){
+
+  #Spp names (for aesthetics)
+  spp_names <- paste0(rep('Sp', no_spp), seq(1, no_spp))
+  
+  #Species parameters
+  spp_parameters <- data.frame(optima = optima, #species optimas
+                               niche_width = niche_width, #niche widths
+                               max_r = max_r) #growth rates
+  #Responses
+  spp_responses <- spp_parameters%>%
+    apply(., 1, function(x)response_curves(x = Env, 
+                                           optima = x[1],
+                                           niche_width = x[2], 
+                                           max_r = x[3]))%>%
+    as_tibble()%>%
+    setNames(nm = spp_names)%>%
+    cbind(Environment = Env, .)
+  
+  #If reponse == TRUE, return responses If false, return samples
+  if(response == TRUE){
+    return(spp_responses)
+  }else{
+    
+    #Convert responses to samples
+    spp_samples <- spp_responses%>%
+      apply(1, function(x)rbinom(n = no_spp, size = 1, prob = x))%>%
+      t()%>%
+      as_tibble()%>%
+      setNames(nm = spp_names)%>%
+      cbind(Environment = Env, .)
+    
+    
+    return(spp_samples)
+  }
+  
+} 
+
+#Example
+Env <- seq(from = 0, to = 1, length.out = 200) 
+
+sim_comm(no_spp = 10, env = Env,
+         optima = runif(10),
+         niche_width = 0.1,
+         max_r = 1,
+         response = TRUE)%>%
+  pivot_longer(cols = -1, names_to = 'Species', values_to = 'Response')%>%
+  ggplot(aes(x = Environment, y = Response, group = Species, col = Species))+
+  geom_line()+
+  theme_bw()+guides(col = "none")
+
+```
+
+## Activity 4. The mid-domain effect
+
+We live in a spatially constrained world. We can only fit so much books in our backpacks, people in lecture halls, and food in our tummy. It's no surprise that these **spatial constraints also leave their mark on the abundance and distribution of species**. In this section, we will look at how ecological patterns can be influenced by spatial constraints of the system.
+
+One such example of a spatial (or geographical) constraint is the **mid-domain effect**, which is the phenomenon in which species richness tend to be highest at the middle of a bounded geographic domain for solely stochastic reasons. It is "stochastic" in the sense that it has nothing to do with the actual environment conditions. The figure below from Colwell & Lees (2000) is a simulation showing how the range size of species influences the location in which species richness peaks within a bounded domain.
+
+```{marginfigure}
+Adapted from Colwell & Lees (2000)
+```
+
+```{r, fig.align= "center", out.width = "50%", echo = FALSE}
+knitr::include_graphics("mid-domain.png")
+```
+
+The intuition is this:
+
+Imagine that we are sampling **trees** and **temperature** along an **elevational gradient**. As we go up the mountain, we start seeing a turnover in species composition. Some species are no longer observed and new species start to show up. After looking at your data, you notice that species richness peaks somewhere around the middle of the elevational range
+
+```{r, echo = FALSE}
+#Simulate some data
+ele_richness <- data.frame(Elevation = seq(from = 0, to = 3000, length.out = 100))%>%
+  mutate(Richness = response_curves(x = Elevation/3000,
+                                    optima = 0.4, niche_width = 0.5))%>%
+  mutate(Richness = Richness * 70 + rnorm(100, sd = 3))%>%
+  mutate(Temperature = seq(from = 28, to = 6, length.out = 100)+rnorm(100))
+
+#Plot
+ele_richness%>%
+  ggplot(aes(x = Elevation, y = Richness, col = Temperature))+
+  geom_point(size = 3)+
+  scale_color_gradient2(high = 'red')+
+  labs(x = 'Elevation (m)')+
+  theme_bw()
+```
+
+**Assuming niche width is the same across all species**, we might infer that species (and their optimas) are sorted by temperature along the elevational gradient. We might also make the conclusion that species richness is highest at intermediate temperature conditions since most of species optimas occur around that region.
+
+**Temperature -\> Species optimas -\> Richness**
+
+However, as Colwell & Lees show, richness pattern can be **unrelated to environmental conditions** (i.e. unrelated to deterministic processes) and may solely be due to inherent spatial/geographic boundaries of the system. Furthermore, they show that species ranges can influence the strength of this alternative, stochastic process. In other words, Colwell & Lees show that in a bounded region, richness peeks will emerge:
+
+-   **without any environmental effects** and that the
+-   **probability of finding a peak in the middle is related to species ranges**
+
+Let's try and see if we can reproduce the results of Colwell & Lees. To do so, we will:
+
+-   **Randomize species optimas** along the gradient (removes environmental effects)
+
+-   **Vary the size of species ranges** (or niche widths)
+
+**Task 4a.** Using the `sim_comm()` function, simulate multiple ecological communities along an environmental gradient with 500 `niche_width` values from 0.01 to 0.2. Use only a single niche width value for each simulation (There should be a total of 500 simulated communities).
+
+Use these parameter values for all simulations:
+
+-   `env` with a gradient length of 100 between 0 and 1
+
+-   `no_spp` = 200
+
+-   random and uniformly distributed `optima` between 0 and 1
+
+-   `max_r` = 0.7
+
+-   set `response = FALSE`
+
+```{r, echo = FALSE}
+#Initiate constant paramters
+Env <- seq(from = 0, to = 1, length.out = 100) 
+no_spp <- 200
+
+#Paramter to vary
+niche_widths <- seq(from = 0, to = 0.2, length.out = 500)
+
+#Simulate communities -----
+#iniate data structure for storing data
+simulated_comm <- list()
+
+#iterate
+for(i in 1:length(niche_widths)){
+  
+  #Draw species optimas randomly
+  opt <- runif(n = no_spp) 
+  
+  #Simulate
+  simulated_comm[[i]] <- sim_comm(no_spp = no_spp, env = Env,
+                                  optima = opt, 
+                                  niche_width = niche_widths[i], 
+                                  max_r = 0.7, response = FALSE)
+}
+
+```
+
+Let's now look at the location of the species richness peaks of these communities
+
+```{r, echo = FALSE, out.width = "50%",}
+simm_comm_df <- simulated_comm%>%
+  bind_rows()%>%
+  mutate(niche_width = rep(niche_widths, each = length(Env)))%>%
+  mutate(Richness = rowSums(select(., starts_with("Sp"))))%>%
+  mutate(niche_width = as.numeric(niche_width))%>%
+  select(niche_width, Environment, Richness)
+
+
+#Richness patterns
+simm_comm_df%>%
+  ggplot(aes(x = Environment, y = Richness))+
+  geom_point(aes(col = niche_width))+
+  scale_color_gradient(name = 'Niche width')+
+  theme_bw()
+
+#Peak richess----
+#group by niche_width and filter rows by max value of richness
+rich_peak_df <- simm_comm_df%>%
+  group_by(niche_width)%>%
+  slice(which.max(Richness))
+
+rich_peak_df%>%
+  ggplot(aes(x = Environment, y = niche_width))+
+  geom_point(size = 3, alpha = 0.7)+
+  labs(y = 'Niche width', x = 'Richness Peak')+
+  theme_bw()
+
+```
+
+Close enough? Maybe?
+
+<br>
+
+<br>
+
+## Species interactions & coexistence
+
+The rules of life (as we know it) are governed by dynamical equations. All organisms consume resource, grow, and move at specific **rates.** In so doing, they also modify the rates (i.e. interact) of other organisms. While it may be impossible to measure all the rates that an organism engages in, we can nonetheless devise a phenomenological mathematical model that captures the *essence* of these interactions. One such model is the multispecies **Generalized Lotka-Volterra** model of the form:
+
+$$
+\frac{dx_i}{dt} = x_i(r_i - Ax_i)
+$$
+
+You might be wondering, if this is a multispecies mode, why is there only *one* equation? The parameters defined are in matrix form, which each parameter containing the information of $N$ number of species. Specifically, $x_i$, $r_i$ are vectors of species **densities** and **growth rates** respectively. $A$ is a $N$ x $N$ square matrix containing the **interaction coefficients** that tell us how species interact with each other (the off-diagonal elements) and themselves (diagonal elements). The denominator $dt$ indicates that species densities change over time and equations of this type are called: **ordinary differential equations**
+
+On a computer, we can solve these type of equations using numerical solvers. In R, the most frequently used package for this is the `deSolve` package
+
+Here's an example of how to solve a 2-species GLV:
+
+```{r}
+library(deSolve)
+
+#Set up: 2 spp GLV ---------------
+#I. Define the GLV equation
+GLV <- function(t, N0, parameters){
+  #t is the time interval 
+  #N0 is initial population size
+  #parameters is a list that contains r and A
+  with(as.list(c(N0, parameters)), {
+    #N0[N0 < 10^-8] <- 0 # prevent numerical problems
+    dxdt <- N0 * (r - A %*% N0)
+    list(dxdt)
+  })
+}
+
+#II. Solve the equation numerically
+GLV_solver <- function(r, A, N0, maxtime = 100, steptime = 0.5){
+  
+  #Setup
+  times <- seq(from = 0, to = maxtime, by = steptime) #time interval
+  pars <- list(r = r, A = A) #store paramters as a list
+  
+  #numerical ode solver
+  out <- ode(y = N0, times = times, func = GLV,
+             parms = pars, method = 'ode45')%>%
+    as_tibble()%>%
+    mutate_all(as.numeric)%>%
+    pivot_longer(cols = -1, names_to = 'Species', values_to = "N")
+  return(out)
+}
+
+#Simulate dynamics ------------
+#Set up some parameters
+set.seed(10)
+A <- matrix(runif(4, min = 0.3, max = 0.7), ncol = 2) #random inter that is <1
+diag(A) <- 1  #set intra to 1
+r2 <- runif(2, min = 0.3, max = 0.5) #2 random growth rates
+N0 <- c(0.1, 0.1) #initial population size
+
+#Set the time interval in which the equation will be integrated over
+times <- seq(from = 0, to = 50, by = 0.1)
+
+#Store the paramters in a list
+pars <- list(r = r2, A = A) 
+
+#Solve the equation
+solution <- GLV_solver(r = r2, A = A, N0 = N0, maxtime = 50, steptime = 0.1)
+  
+#Visualize result -----
+coexist_p <- solution%>%
+  ggplot(aes(x = time, y = N, col = Species))+
+  geom_line()+theme_bw()
+coexist_p
+```
+
+From the figure above, we see that both species grow to a stable equilibrium where each maintain a positive abundance. This was achieved because the simulation was set up in such a way that the two species can stably coexist, which requires the condition that intraspecific \> interspecific competition:
+
+$$
+\frac{\alpha_{11}\alpha_{22}}{\alpha_{12}\alpha_{21}} > 1
+$$
+
+As an alternative to simulating the dynamics to check whether or not species coexist, Hofbauer and Sigmund (1998) provided a mathematical proof showing that the equilibrium conditions of a GLV can be solved analytically:
+
+$$
+Ax^* = -r
+$$
+
+Here, coexistence is defied as the solution in which all values are positive (i.e. feasible equilibrium). Here's an example of how to solve for the equilibrium analytically using:
+
+```{r}
+#Solve analytically
+feasible_equi <- solve(-A, -r2) #bring the "-" in GLV into A
+
+#Map solution on plot
+coexist_p + geom_hline(yintercept = feasible_equi, linetype = 'dashed')
+```
+
+What's cool about the analytical solution is that even when the GLV system behaves chaotically, it can still give us the "long-term" densities of species
+
+```{marginfigure}
+These parameter values are from Stefano Allesina's GLV lectures which you can find [here](https://stefanoallesina.github.io/Sao_Paulo_School/multi.html)
+
+Fun fact, there is currently no anlytical solution to finding paramter values that result in chaos. The only way one can do it is to, you guessed it, SIMULATE.
+```
+
+```{r}
+#Parameter values
+r_4 <- c(1, 0.72, 1.53, 1.27)
+A_4 <- matrix(c(1, 1.09, 1.52, 0, 
+                 0, 0.72, 0.3168, 0.9792, 
+                 3.5649, 0, 1.53, 0.7191,
+                 1.5367, 0.6477, 0.4445, 1.27), 4, 4, byrow = TRUE)
+#Initial conditions
+x0_4 <- 0.1 * runif(4)
+
+#Feasible equilibrium
+feasible_chaos <- solve(-A_4, -r_4) 
+
+#Solve numerically
+glv_chaos <- GLV_solver(r = r_4, A = A_4, N0 = x0_4, maxtime = 500)
+
+#Plot
+chaotic_p <- glv_chaos%>%
+  ggplot(aes(x = time, y = N, col = Species))+
+  geom_line()+
+  geom_hline(yintercept = feasible_chaos, linetype = 'dashed')+
+  theme_bw()
+
+chaotic_p
+```
+
+**BONUS**
+
+Saavedra et al. (2017) showed that condition for 2-spp coexistence does not hold for \>2 species. Can you validate this with simulations?
